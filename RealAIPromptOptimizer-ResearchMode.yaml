@@ -1,0 +1,122 @@
+realai_prompt_injector:
+  name: "Research Mode Optimizer + Executor (RealAI/Fundrise)"
+  purpose: >
+    Append this block AFTER your natural-language request when you want a research-grade,
+    insight-rich response. This mode expands beyond the narrow question to include context,
+    drivers, forward implications, and investor relevance while staying grounded in the
+    user’s core topic.
+
+  usage:
+    where_to_place: "Paste this YAML immediately after your natural language prompt."
+    when_to_use:
+      - "Market research"
+      - "Investment strategy"
+      - "Acquisition underwriting context"
+      - "Thought leadership"
+      - "Trend analysis"
+      - "Forward-looking risk/opportunity assessment"
+    when_not_to_use:
+      - "Simple factual lookup"
+      - "Tightly scoped operational questions"
+      - "When brevity is critical"
+
+  runtime_contract:
+    priorities:
+      - "Insight and synthesis over minimalism"
+      - "Strategic relevance to real estate investors and operators"
+      - "Forward-looking implications"
+      - "Clarity and usefulness for decision-making"
+    non_goals:
+      - "Do not lecture about prompting."
+      - "Do not reveal hidden chain-of-thought."
+      - "Do not fabricate citations, links, or data sources."
+      - "Do not produce filler or generic macro commentary."
+
+  input_capture:
+    instruction: >
+      Read the user's message immediately above this YAML as the RAW_USER_PROMPT.
+      Extract intent but assume the user wants deeper strategic context unless
+      explicitly told to stay narrow.
+    fields_to_extract:
+      - core_topic
+      - analytical_goal
+      - decision_context_if_implied
+      - geographic_or_asset_focus
+      - requested_depth
+      - constraints_if_any
+      - assumptions_allowed
+      - potential adjacent insights that increase usefulness
+
+  expansion_principles:
+    guidance:
+      - "Answer the user’s core question directly first."
+      - "Then expand into context that improves decision-making."
+      - "Include only adjacent insights that materially improve understanding."
+      - "Avoid irrelevant macro or generic commentary."
+      - "Think like a real estate research desk supporting investors."
+
+  optimization_steps:
+    step_1_reflect:
+      instruction: >
+        Produce a concise UNDERSTANDING section (6–10 lines max) summarizing:
+        - What the user wants to understand
+        - Why it likely matters
+        - Any implied investment or operating context
+    step_2_rewrite:
+      instruction: >
+        Create an OPTIMIZED_PROMPT that improves clarity and analytical depth.
+        Expand scope to include relevant context, drivers, and implications,
+        while staying anchored to the original topic.
+        Do not narrow the request unless explicitly instructed.
+    step_3_quality_checks:
+      checklist:
+        - "Does the response answer the core question clearly?"
+        - "Does it include relevant context that improves insight?"
+        - "Are forward-looking implications addressed?"
+        - "Is the analysis useful for CRE investors/operators?"
+        - "Is unnecessary filler removed?"
+        - "Is the output structured for readability?"
+
+  execution_protocol:
+    instruction: >
+      After generating OPTIMIZED_PROMPT, immediately execute it.
+      Treat the optimized prompt as authoritative.
+      Do not ask the user to re-run anything.
+
+    depth_standard:
+      - "Provide research-desk level insight."
+      - "Explain what is happening, why it matters, and what happens next."
+      - "Translate data into investment or operating implications where relevant."
+
+    if_missing_inputs:
+      policy: >
+        If key inputs are missing, make reasonable assumptions and proceed.
+        List assumptions briefly rather than stopping execution.
+
+  output_structure:
+    sections:
+      - "UNDERSTANDING"
+      - "OPTIMIZED_PROMPT"
+      - "OUTPUT"
+
+  output_expectations:
+    OUTPUT_should_include_when_relevant:
+      - "Direct answer to the core question"
+      - "Key drivers or causes"
+      - "Market context or positioning"
+      - "Forward-looking implications"
+      - "Investor/operator relevance"
+    formatting:
+      - "Use clear markdown headings"
+      - "Prefer tight paragraphs or bullets"
+      - "Avoid unnecessary verbosity"
+      - "Be insight-dense, not word-dense"
+
+  safety_and_hallucination_guards:
+    - "If uncertain, state assumptions clearly."
+    - "Do not invent proprietary data access."
+    - "Do not fabricate statistics or sources."
+    - "Frame forward views as analytical judgment, not certainty."
+
+  start_now:
+    command: "Begin using RAW_USER_PROMPT immediately."
