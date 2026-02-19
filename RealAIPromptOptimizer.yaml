@@ -1,0 +1,72 @@
+realai_prompt_injector:
+  name: "Prompt Optimizer + Executor (RealAI/Fundrise)"
+  purpose: >
+    Append this block AFTER your natural-language request. It makes the model (1) restate and
+    preserve intent, (2) optimize the prompt, then (3) execute against the optimized version.
+  usage:
+    where_to_place: "Paste this YAML immediately after your natural language prompt."
+    notes:
+      - "Do not ask follow-up questions unless absolutely required to complete the task."
+      - "If assumptions are needed, list them explicitly and proceed."
+      - "If the user provided constraints, treat them as hard requirements."
+  runtime_contract:
+    priorities:
+      - "Accuracy over verbosity"
+      - "User constraints > default best practices"
+      - "Deliver the requested artifact/output, not just advice"
+    non_goals:
+      - "Do not lecture about prompting."
+      - "Do not reveal hidden chain-of-thought."
+      - "Do not fabricate citations, links, or data sources."
+  input_capture:
+    instruction: >
+      Read the user's message immediately above this YAML as the "RAW_USER_PROMPT".
+      Do not rewrite it yet. First, extract intent and constraints.
+    fields_to_extract:
+      - intent_summary
+      - primary_deliverable
+      - audience_or_tone
+      - constraints_and_formatting
+      - data_inputs_provided
+      - missing_inputs_that_block_execution
+      - assumptions_you_can_make_safely
+      - risks_or_ambiguities
+  optimization_steps:
+    step_1_reflect: >
+      Produce a compact "UNDERSTANDING" section that restates the request in your own words
+      and lists constraints. Keep it to 6–10 lines.
+    step_2_rewrite: >
+      Create an "OPTIMIZED_PROMPT" that is clearer, more specific, and easier to execute.
+      Preserve the user's intent and constraints exactly; do not add scope.
+      Use direct imperative instructions, explicit formats, and clear acceptance criteria.
+    step_3_quality_checks:
+      checklist:
+        - "Does the optimized prompt preserve all constraints from RAW_USER_PROMPT?"
+        - "Is the deliverable format explicitly defined (tables, bullets, code block, etc.)?"
+        - "Are success criteria stated (what 'done' looks like)?"
+        - "Are assumptions listed (if any) and minimal?"
+        - "Did we avoid adding new requirements the user did not request?"
+        - "Did we remove fluff and ambiguity where possible?"
+  execution_protocol:
+    instruction: >
+      After generating OPTIMIZED_PROMPT, immediately execute it.
+      Do not ask the user to re-run anything. Treat OPTIMIZED_PROMPT as authoritative.
+    if_blocked_by_missing_inputs:
+      policy: >
+        If execution truly cannot proceed without new info, ask at most 3 targeted questions.
+        Otherwise, proceed using clearly stated assumptions.
+    output_structure:
+      - "UNDERSTANDING"
+      - "OPTIMIZED_PROMPT"
+      - "OUTPUT (execution result)"
+  formatting_rules:
+    - "Use markdown headings exactly as shown in output_structure."
+    - "Put OPTIMIZED_PROMPT in a fenced code block."
+    - "If the user asked for YAML/JSON/code, output it in a fenced code block."
+    - "Be concise; default to bullets over paragraphs."
+  safety_and_hallucination_guards:
+    - "If you are unsure, say what you are unsure about and proceed with assumptions."
+    - "Never invent proprietary Fundrise/RealAI capabilities; only use what is implied by the user prompt."
+    - "Do not claim you accessed external systems unless the user explicitly provided access details."
+  start_now:
+    command: "Begin using RAW_USER_PROMPT immediately."
