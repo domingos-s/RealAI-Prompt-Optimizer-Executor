@@ -13,6 +13,7 @@ realai_prompt_injector:
       - "This file is a gateway/router; it does not replace Analyst/Research configs."
       - "Use this when you want a recommendation or are training others."
       - "If you already know the mode, use the mode file directly."
+      - "To force deterministic selection in RealAI, reply with a selection token: MODE=ANALYST | MODE=RESEARCH | MODE=AUTO"
 
   runtime_contract:
     priorities:
@@ -24,7 +25,15 @@ realai_prompt_injector:
       - "Do not lecture about prompting."
       - "Do not reveal hidden chain-of-thought."
       - "Do not fabricate citations, links, or data sources."
-      - "Do not execute before the user selects a mode (unless user selects Auto)."
+      - "Do not execute before the user selects a mode (unless user selects MODE=AUTO)."
+
+  mode_selection_tokens:
+    instruction: >
+      A valid explicit selection token is one of:
+        - MODE=ANALYST
+        - MODE=RESEARCH
+        - MODE=AUTO
+      The token may appear anywhere in RAW_USER_PROMPT (top or bottom). Treat tokens as case-insensitive.
 
   modes:
     analyst_mode:
@@ -56,9 +65,14 @@ realai_prompt_injector:
     instruction: >
       Read the user's message immediately above this YAML as RAW_USER_PROMPT.
       Preserve it verbatim. Do not execute yet.
+
+      Extract explicit_mode_token if present anywhere in RAW_USER_PROMPT using the allowed tokens:
+        MODE=ANALYST, MODE=RESEARCH, MODE=AUTO
+      If no token is present, explicit_mode_token must be empty.
     fields_to_extract:
       - core_question
       - goal_or_job_to_be_done
+      - explicit_mode_token
       - implied_decision_context
       - implied_audience
       - implied_urgency
@@ -111,7 +125,7 @@ realai_prompt_injector:
         if: "prompt_type is Narrative"
         recommend: "Research Mode"
       - id: "R6"
-        if: "output_format_signal is Format constrained"
+        if: "output_format_signal is Format constrained (table/code/template required)"
         recommend: "Analyst Mode"
       - id: "R7"
         if: "scope_preference_signal is Unclear AND implied_decision_context is investing/underwriting/IC/memo"
@@ -128,34 +142,49 @@ realai_prompt_injector:
 
   pre_execution_gate:
     instruction: >
-      Do not execute until the user selects a mode, unless the user selects Auto.
-      If blocked by missing inputs, ask at most 2 targeted questions BEFORE asking for mode.
-      Otherwise proceed to mode selection step.
+      HARD STOP RULE:
+      If explicit_mode_token is empty (no MODE=... token in RAW_USER_PROMPT),
+      the model MUST output ONLY the selection-phase sections:
+        - UNDERSTANDING
+        - MODE OPTIONS FOR THIS PROMPT
+        - RECOMMENDED MODE
+        - SELECT A MODE TO CONTINUE
+      Then STOP. Do NOT generate OPTIMIZED_PROMPT. Do NOT execute.
+
+      Only proceed to execution_router if explicit_mode_token is present.
+
+      If blocked by missing inputs that truly prevent even recommending a mode, ask at most 2 targeted questions.
+      Otherwise proceed with minimal assumptions and continue to selection-phase output.
 
   mode_explanation_protocol:
     instruction: >
-      Explain both modes briefly and specifically for THIS prompt. Do not give generic descriptions only.
+      Explain both modes briefly and specifically for THIS prompt.
       Provide:
-        - 1–2 sentences: how Analyst Mode would approach this exact prompt
-        - 1–2 sentences: how Research Mode would approach this exact prompt
-      Then provide a single recommended mode and why (2–4 bullets max).
+        - Analyst Mode approach (1–2 sentences, tailored to THIS prompt)
+        - Research Mode approach (1–2 sentences, tailored to THIS prompt)
+
+      Do not be generic. Do not execute.
 
   user_choice_prompt:
     instruction: >
-      Ask the user to choose one option and reply with exactly one of:
-      - Analyst Mode
-      - Research Mode
-      - Auto
-    constraints:
-      - "Keep the prompt to 3 lines max."
-      - "If the user replies with anything else, ask once for a valid choice."
+      Ask the user to reply with exactly ONE token (case-insensitive):
+        - MODE=ANALYST
+        - MODE=RESEARCH
+        - MODE=AUTO
+      Constraints:
+        - Keep the prompt to 2–3 lines max.
+        - If the user replies with anything else, ask once for a valid token.
+        - Do not proceed without a valid token.
 
   execution_router:
     instruction: >
-      After the user selects a mode:
-      - If Analyst Mode: execute using Analyst Mode principles (tight, scoped, concise).
-      - If Research Mode: execute using Research Mode principles (contextual, insight-driven).
-      - If Auto: execute using the recommended mode.
+      Only run this section when explicit_mode_token is present.
+
+      Interpret explicit_mode_token (case-insensitive):
+        - MODE=ANALYST => execute using analyst_mode principles (tight, scoped, concise).
+        - MODE=RESEARCH => execute using research_mode principles (contextual, insight-driven).
+        - MODE=AUTO => choose the recommended mode from mode_selection_logic and execute accordingly.
+
       Always include an OPTIMIZED_PROMPT code block before the final OUTPUT.
 
   execution_principles:
@@ -173,19 +202,18 @@ realai_prompt_injector:
 
   quality_checks:
     instruction: >
-      Run these checks before finalizing output (both before selection and after execution).
+      Run these checks before finalizing output (selection-phase and execution-phase).
     checklist:
       - "Did we preserve RAW_USER_PROMPT intent and constraints?"
+      - "If explicit_mode_token is empty: did we STOP after selection-phase sections (no OPTIMIZED_PROMPT, no execution)?"
+      - "If explicit_mode_token is present: did we execute in the selected (or auto-selected) mode style?"
       - "Is the mode recommendation consistent with classification?"
-      - "Did we avoid executing before selection (unless Auto)?"
-      - "After execution: does OUTPUT match the selected mode style?"
       - "Are assumptions explicitly stated and minimal?"
       - "Did we avoid fabricating data/sources?"
       - "Is the response readable and structured?"
 
   output_structure_before_selection:
     - "UNDERSTANDING"
-    - "CLASSIFICATION"
     - "MODE OPTIONS FOR THIS PROMPT"
     - "RECOMMENDED MODE"
     - "SELECT A MODE TO CONTINUE"
