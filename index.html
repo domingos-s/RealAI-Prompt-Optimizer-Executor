@@ -126,7 +126,7 @@
         <option value="selector_auto">Mode Selector (auto-execute — picks a mode and runs)</option>
       </select>
 
-      <!-- Advanced override (only visible for Mode Selector options) -->
+      <!-- Advanced override (only visible for Mode Selector AUTO) -->
       <div id="advancedPanel" class="advanced-panel">
         <div class="advanced-grid">
           <label for="modeTokenOverride" style="margin:0;">Advanced: token override</label>
@@ -138,7 +138,7 @@
           </select>
         </div>
         <div class="small">
-          Most users can ignore this. It prepends a MODE token above your prompt when using a Mode Selector option.
+          Most users can ignore this. It prepends a MODE token above your prompt when using Mode Selector (auto-execute).
         </div>
       </div>
 
@@ -304,33 +304,49 @@
       return await resp.text();
     }
 
-    function computeModeToken() {
-      // If user sets an override, it wins (only relevant for Mode Selector modes)
+    function computeModeTokenForSelectorAuto() {
+      // Only relevant for selector_auto
       const override = (modeTokenOverrideEl.value || "").trim();
-      if (isModeSelectorSelected() && override) return override;
-
-      // Default behavior:
-      if (modeEl.value === "selector_auto") return "MODE=AUTO";
-      return ""; // selector_interactive => no token
+      if (override) return override;
+      return "MODE=AUTO";
     }
 
     function buildCombinedText() {
       const promptRaw = (nlPromptEl.value || '').trimEnd();
       const yaml = (getYamlForCurrentMode() || '').trim();
 
-      if (!promptRaw) return yaml; // allow YAML-only
-      if (!yaml) return promptRaw;  // still helpful if YAML hasn't loaded
+      // allow YAML-only copy
+      if (!promptRaw) return yaml;
 
-      const token = computeModeToken();
-      const promptWithToken = token ? (token + "\n" + promptRaw) : promptRaw;
+      // still useful if YAML hasn't loaded
+      if (!yaml) return promptRaw;
 
-      return promptWithToken + "\n\n" + yaml;
+      // MODE SELECTOR (INTERACTIVE): YAML FIRST, THEN PROMPT
+      // This forces RealAI to see the gating instructions before it starts answering.
+      if (modeEl.value === "selector_interactive") {
+        return yaml + "\n\n" + promptRaw;
+      }
+
+      // MODE SELECTOR (AUTO): token + prompt, then YAML
+      if (modeEl.value === "selector_auto") {
+        const token = computeModeTokenForSelectorAuto();
+        const promptWithToken = token ? (token + "\n" + promptRaw) : promptRaw;
+        return promptWithToken + "\n\n" + yaml;
+      }
+
+      // ANALYST / RESEARCH: prompt then YAML (unchanged)
+      return promptRaw + "\n\n" + yaml;
     }
 
     function updateAdvancedPanelVisibility() {
-      // Only show advanced override when Mode Selector is chosen
-      advancedPanelEl.style.display = isModeSelectorSelected() ? "block" : "none";
-      if (!isModeSelectorSelected()) modeTokenOverrideEl.value = "";
+      // Show token override ONLY for Mode Selector (auto-execute)
+      // Hide it for Mode Selector (interactive) to avoid confusion.
+      const showAdvanced = (modeEl.value === "selector_auto");
+      advancedPanelEl.style.display = showAdvanced ? "block" : "none";
+
+      if (!showAdvanced) {
+        modeTokenOverrideEl.value = "";
+      }
     }
 
     function updatePreview() {
