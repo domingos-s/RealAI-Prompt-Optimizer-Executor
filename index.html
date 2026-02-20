@@ -72,10 +72,26 @@
     }
     .dot.good{ background: rgba(0,160,80,.85); }
     .dot.bad{ background: rgba(220,60,60,.85); }
-    footer{ margin-top: 18px; opacity:.75; font-size:12px; }
     details{ margin-top: 10px; }
     summary{ cursor:pointer; font-weight:700; }
     code{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    .small{ font-size: 12px; opacity: .75; margin-top: 8px; }
+    .advanced-panel{
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(127,127,127,.25);
+      background: rgba(127,127,127,.04);
+      display: none;
+    }
+    .advanced-grid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    @media (min-width: 560px){
+      .advanced-grid{ grid-template-columns: 240px 1fr; align-items:center; }
+    }
   </style>
 </head>
 
@@ -91,7 +107,7 @@
       <span id="yamlStatusText">Loading YAML from GitHub…</span>
     </span>
     <span class="pill">
-      Repo: <a id="repoLink" href="https://github.com/domingos-s/RealAI-Prompt-Optimizer-Executor" target="_blank" rel="noreferrer">RealAI-Prompt-Optimizer-Executor</a>
+      Repo: <a href="https://github.com/domingos-s/RealAI-Prompt-Optimizer-Executor" target="_blank" rel="noreferrer">RealAI-Prompt-Optimizer-Executor</a>
     </span>
   </div>
 
@@ -106,8 +122,25 @@
       <select id="mode">
         <option value="analyst">Analyst Mode (tight + scoped)</option>
         <option value="research">Research Mode (context + implications)</option>
-        <option value="selector">Mode Selector (asks you to choose)</option>
+        <option value="selector_interactive">Mode Selector (interactive — asks you to choose)</option>
+        <option value="selector_auto">Mode Selector (auto-execute — picks a mode and runs)</option>
       </select>
+
+      <!-- Advanced override (only visible for Mode Selector options) -->
+      <div id="advancedPanel" class="advanced-panel">
+        <div class="advanced-grid">
+          <label for="modeTokenOverride" style="margin:0;">Advanced: token override</label>
+          <select id="modeTokenOverride">
+            <option value="">(none)</option>
+            <option value="MODE=ANALYST">MODE=ANALYST — force Analyst execution</option>
+            <option value="MODE=RESEARCH">MODE=RESEARCH — force Research execution</option>
+            <option value="MODE=AUTO">MODE=AUTO — force Auto execution</option>
+          </select>
+        </div>
+        <div class="small">
+          Most users can ignore this. It prepends a MODE token above your prompt when using a Mode Selector option.
+        </div>
+      </div>
 
       <div class="buttons">
         <button id="copyCombined" class="primary">Copy Combined Prompt</button>
@@ -148,10 +181,6 @@
     </div>
   </div>
 
-  <footer>
-    
-  </footer>
-
   <script>
     // =========================
     // CONFIG — UPDATE IF NEEDED
@@ -160,15 +189,12 @@
     const REPO_NAME  = "RealAI-Prompt-Optimizer-Executor";
     const REPO_BRANCH = "main";
 
-    // Filenames must match your repo.
     const FILE_ANALYST  = "RealAIPromptOptimizer-AnalystMode.yaml";
     const FILE_RESEARCH = "RealAIPromptOptimizer-ResearchMode.yaml";
     const FILE_SELECTOR = "RealAIPromptOptimizer-ModeSelector.yaml";
 
-    // Raw GitHub base
     const RAW_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}/`;
 
-    // LocalStorage cache keys
     const CACHE_PREFIX = "realai_prompt_optimizer_cache_v1";
     const CACHE_KEYS = {
       analyst:  `${CACHE_PREFIX}_analyst`,
@@ -197,15 +223,12 @@
     const srcR = document.getElementById('srcR');
     const srcS = document.getElementById('srcS');
 
-    // =========================
-    // RUNTIME YAML STORE
-    // =========================
-    const yamlStore = {
-      analyst: null,
-      research: null,
-      selector: null
-    };
+    const advancedPanelEl = document.getElementById('advancedPanel');
+    const modeTokenOverrideEl = document.getElementById('modeTokenOverride');
 
+    // =========================
+    // YAML URLS + STORE
+    // =========================
     const yamlUrls = {
       analyst:  RAW_BASE + FILE_ANALYST,
       research: RAW_BASE + FILE_RESEARCH,
@@ -215,6 +238,12 @@
     srcA.textContent = yamlUrls.analyst;
     srcR.textContent = yamlUrls.research;
     srcS.textContent = yamlUrls.selector;
+
+    const yamlStore = {
+      analyst: null,
+      research: null,
+      selector: null
+    };
 
     // =========================
     // HELPERS
@@ -231,49 +260,26 @@
       window.setTimeout(() => { statusEl.style.display = "none"; }, 2600);
     }
 
-    function getYamlForMode(mode) {
-      if (mode === 'analyst') return yamlStore.analyst;
-      if (mode === 'research') return yamlStore.research;
-      return yamlStore.selector;
+    function isModeSelectorSelected() {
+      return modeEl.value === "selector_interactive" || modeEl.value === "selector_auto";
     }
 
-    function buildCombinedText() {
-      const prompt = (nlPromptEl.value || '').trimEnd();
-      const yaml = (getYamlForMode(modeEl.value) || '').trim();
-      if (!prompt) return yaml; // allows YAML-only copy even if prompt empty
-      if (!yaml) return prompt; // in case YAML hasn't loaded yet
-      return prompt + "\n\n" + yaml;
+    function getYamlKeyForCurrentMode() {
+      if (modeEl.value === "analyst") return "analyst";
+      if (modeEl.value === "research") return "research";
+      return "selector";
     }
 
-    function updatePreview() {
-      previewEl.value = buildCombinedText();
-      const hasPrompt = (nlPromptEl.value || '').trim().length > 0;
-      copyCombinedBtn.disabled = !hasPrompt;
-      copyYamlBtn.disabled = !getYamlForMode(modeEl.value);
+    function getYamlForCurrentMode() {
+      return yamlStore[getYamlKeyForCurrentMode()];
     }
 
-    async function copyText(text) {
-      try {
-        await navigator.clipboard.writeText(text);
-        return true;
-      } catch (e) {
-        // fallback
-        try {
-          const temp = document.createElement('textarea');
-          temp.value = text;
-          temp.setAttribute('readonly', '');
-          temp.style.position = 'absolute';
-          temp.style.left = '-9999px';
-          document.body.appendChild(temp);
-          temp.select();
-          temp.setSelectionRange(0, temp.value.length);
-          const ok = document.execCommand('copy');
-          document.body.removeChild(temp);
-          return ok;
-        } catch (e2) {
-          return false;
-        }
-      }
+    function validateYamlLooksReasonable(yamlText) {
+      if (!yamlText) return false;
+      const t = yamlText.trim();
+      if (t.length < 40) return false;
+      if (!t.includes("realai_prompt_injector:")) return false;
+      return true;
     }
 
     function cacheYaml(mode, text) {
@@ -298,14 +304,65 @@
       return await resp.text();
     }
 
-    function validateYamlLooksReasonable(yamlText) {
-      // Lightweight sanity checks (not a full YAML parser).
-      if (!yamlText) return false;
-      const t = yamlText.trim();
-      if (t.length < 40) return false;
-      // Expect top-level key in these configs:
-      if (!t.includes("realai_prompt_injector:")) return false;
-      return true;
+    function computeModeToken() {
+      // If user sets an override, it wins (only relevant for Mode Selector modes)
+      const override = (modeTokenOverrideEl.value || "").trim();
+      if (isModeSelectorSelected() && override) return override;
+
+      // Default behavior:
+      if (modeEl.value === "selector_auto") return "MODE=AUTO";
+      return ""; // selector_interactive => no token
+    }
+
+    function buildCombinedText() {
+      const promptRaw = (nlPromptEl.value || '').trimEnd();
+      const yaml = (getYamlForCurrentMode() || '').trim();
+
+      if (!promptRaw) return yaml; // allow YAML-only
+      if (!yaml) return promptRaw;  // still helpful if YAML hasn't loaded
+
+      const token = computeModeToken();
+      const promptWithToken = token ? (token + "\n" + promptRaw) : promptRaw;
+
+      return promptWithToken + "\n\n" + yaml;
+    }
+
+    function updateAdvancedPanelVisibility() {
+      // Only show advanced override when Mode Selector is chosen
+      advancedPanelEl.style.display = isModeSelectorSelected() ? "block" : "none";
+      if (!isModeSelectorSelected()) modeTokenOverrideEl.value = "";
+    }
+
+    function updatePreview() {
+      updateAdvancedPanelVisibility();
+      previewEl.value = buildCombinedText();
+
+      const hasPrompt = (nlPromptEl.value || '').trim().length > 0;
+      copyCombinedBtn.disabled = !hasPrompt;
+      copyYamlBtn.disabled = !getYamlForCurrentMode();
+    }
+
+    async function copyText(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch (e) {
+        try {
+          const temp = document.createElement('textarea');
+          temp.value = text;
+          temp.setAttribute('readonly', '');
+          temp.style.position = 'absolute';
+          temp.style.left = '-9999px';
+          document.body.appendChild(temp);
+          temp.select();
+          temp.setSelectionRange(0, temp.value.length);
+          const ok = document.execCommand('copy');
+          document.body.removeChild(temp);
+          return ok;
+        } catch (e2) {
+          return false;
+        }
+      }
     }
 
     async function loadYamlFromGitHub() {
@@ -314,14 +371,10 @@
       const results = { analyst: null, research: null, selector: null };
       const errors = [];
 
-      // Fetch in parallel
-      const entries = Object.entries(yamlUrls);
-      await Promise.all(entries.map(async ([mode, url]) => {
+      await Promise.all(Object.entries(yamlUrls).map(async ([mode, url]) => {
         try {
           const txt = await fetchText(url);
-          if (!validateYamlLooksReasonable(txt)) {
-            throw new Error(`YAML failed sanity check for ${mode}`);
-          }
+          if (!validateYamlLooksReasonable(txt)) throw new Error(`YAML failed sanity check for ${mode}`);
           results[mode] = txt;
         } catch (e) {
           errors.push({ mode, error: String(e) });
@@ -344,7 +397,6 @@
         setYamlStatus(true, stamp ? `YAML loaded from GitHub (cached ${stamp})` : "YAML loaded from GitHub");
         showStatus(true, "Loaded YAML from GitHub.");
       } else {
-        // Fallback to cache if possible
         const cA = loadCachedYaml("analyst");
         const cR = loadCachedYaml("research");
         const cS = loadCachedYaml("selector");
@@ -362,9 +414,8 @@
         } else {
           yamlStore.analyst = yamlStore.research = yamlStore.selector = null;
           setYamlStatus(false, "Failed to load YAML (no cache available).");
-          const errMsg = errors.length ? errors.map(e => `${e.mode}: ${e.error}`).join(" | ") : "Unknown error";
           showStatus(false, "Could not load YAML from GitHub and no valid cache found. Check file names/branch.");
-          console.error("YAML load errors:", errors, errMsg);
+          console.error("YAML load errors:", errors);
         }
       }
 
@@ -376,6 +427,7 @@
     // =========================
     nlPromptEl.addEventListener('input', updatePreview);
     modeEl.addEventListener('change', updatePreview);
+    modeTokenOverrideEl.addEventListener('change', updatePreview);
 
     copyCombinedBtn.addEventListener('click', async () => {
       const prompt = (nlPromptEl.value || '').trim();
@@ -386,7 +438,7 @@
     });
 
     copyYamlBtn.addEventListener('click', async () => {
-      const yaml = (getYamlForMode(modeEl.value) || '').trim();
+      const yaml = (getYamlForCurrentMode() || '').trim();
       if (!yaml) return showStatus(false, "YAML not loaded yet. Click Refresh YAML.");
       const ok = await copyText(yaml);
       showStatus(ok, ok ? "Copied YAML to clipboard." : "Copy failed. Select the preview text and copy manually.");
@@ -398,6 +450,7 @@
 
     clearBtn.addEventListener('click', () => {
       nlPromptEl.value = "";
+      modeTokenOverrideEl.value = "";
       updatePreview();
       showStatus(true, "Cleared.");
       nlPromptEl.focus();
@@ -407,13 +460,12 @@
     // INIT
     // =========================
     (async function init() {
-      // Try cache immediately for snappy UX
       const cA = loadCachedYaml("analyst");
       const cR = loadCachedYaml("research");
       const cS = loadCachedYaml("selector");
 
       if (validateYamlLooksReasonable(cA) && validateYamlLooksReasonable(cR) && validateYamlLooksReasonable(cS)) {
-        yamlStore.analyst = cA;
+        yamlStore.analyst  = cA;
         yamlStore.research = cR;
         yamlStore.selector = cS;
 
@@ -424,7 +476,6 @@
       }
 
       updatePreview();
-      // Always attempt a fresh fetch in the background
       await loadYamlFromGitHub();
     })();
   </script>
