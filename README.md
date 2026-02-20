@@ -18,18 +18,42 @@ Together, they allow RealAI to function as a disciplined analyst, a strategic re
 
 ---
 
+## 🚀 Live Web Tool (New)
+
+A production-ready static web interface is now included.
+
+Once GitHub Pages is enabled, you can use it here:  
+**👉 https://domingos-s.github.io/RealAI-Prompt-Optimizer-Executor/**
+
+### What it does
+The web tool allows you to:
+
+1. Paste your natural language prompt  
+2. Select a mode (Analyst, Research, or Mode Selector)  
+3. Click **Copy Combined Prompt**  
+4. Paste directly into RealAI  
+
+The page automatically:
+- Pulls the latest YAML files from this repo  
+- Appends the selected optimizer to your prompt  
+- Copies the optimized prompt to your clipboard  
+- Stays in sync with future YAML updates  
+
+No manual YAML copying required.
+
+---
+
 ## Repository Structure
 
-This repository contains three independent YAML configuration files:
+This repository contains four core files:
 
 - `RealAIPromptOptimizer-AnalystMode.yaml`  
 - `RealAIPromptOptimizer-ResearchMode.yaml`  
 - `RealAIPromptOptimizer-ModeSelector.yaml`  
+- `index.html` (static web tool)
 
-Each file is self-contained and can be used independently.  
-There is no internal switching logic — users choose the mode explicitly by pasting the corresponding YAML block after their natural language prompt.
-
-**Mode Selector** acts as a front-door router when users are unsure which mode to use.
+Each YAML file is self-contained and can be used independently.  
+The web tool dynamically loads these YAML files directly from the repo.
 
 ---
 
@@ -107,90 +131,46 @@ Best for:
 - New or exploratory workflows  
 
 What it does:
-- Interprets the natural language prompt  
-- Explains how each mode would approach the request  
+- Interprets your prompt  
+- Explains how each mode would approach it  
 - Recommends the best mode  
-- Allows user selection:
-  - Analyst Mode  
-  - Research Mode  
-  - Auto (model decides)  
-- Executes using the chosen mode  
+- Lets you choose (or auto-select)  
+- Executes using the selected mode  
 
-Think: **Workflow router and mode advisor for RealAI.**
-
----
-
-## Key Capabilities
-
-### Intent Preservation
-Captures the user’s true objective, audience, tone, and constraints before rewriting anything.
-
-### Prompt Rewriting + Optimization
-Transforms unstructured or loosely defined requests into clear, execution-ready prompts tailored for RealAI performance.
-
-### Automatic Execution
-After optimization (and mode selection if applicable), the model immediately acts on the improved prompt — no additional user input required.
-
-### Constraint-First Logic
-User formatting, tone, and structural requirements are treated as **hard rules** and always take priority.
-
-### Assumption Handling
-If inputs are missing but non-critical:
-- Minimal, transparent assumptions are made  
-- Execution proceeds  
-
-If critical inputs are missing:
-- The model asks only the most necessary clarifying questions  
-
-### Structured Outputs
-Ensures consistent response sections:
-- **Understanding**  
-- **Optimized Prompt**  
-- **Output (final result)**  
-
-Mode Selector adds:
-- **Mode Recommendation**
-- **User Mode Selection**
-- **Execution via chosen mode**
-
----
-
-## Intended Use Cases
-
-- Real estate and investment analysis prompts  
-- Underwriting and financial modeling support  
-- Market research and memos  
-- Investment committee preparation  
-- Content creation (LinkedIn posts, internal briefs, etc.)  
-- Workflow automation inside RealAI  
-- Standardizing prompt quality across teams  
-- Reducing iteration cycles with LLMs  
-- Training analysts to use LLMs consistently  
+Think: **Workflow router and execution advisor.**
 
 ---
 
 ## How to Use
 
-### Option 1 — Use a Mode Directly
-1. Write your request in natural language.  
-2. Choose a mode:
-   - **Analyst Mode** → tight, scoped answers  
-   - **Research Mode** → deeper insight and context  
-3. Paste the corresponding YAML block directly after your prompt.  
-4. Submit to RealAI.  
-5. The model optimizes and executes automatically.
+### Fastest (Recommended)
+Use the web tool:
+1. Open the GitHub Pages link  
+2. Paste your prompt  
+3. Select mode  
+4. Click **Copy Combined Prompt**  
+5. Paste into RealAI  
 
-### Option 2 — Use Mode Selector (Recommended for new workflows)
-1. Write your request in natural language.  
-2. Paste the **Mode Selector** YAML after the prompt.  
-3. RealAI will:
-   - Interpret your intent  
-   - Explain both modes  
-   - Recommend one  
-   - Ask you to choose  
-4. It will then execute using the selected mode.
+### Manual Method
+1. Write your prompt in natural language  
+2. Copy the YAML for the desired mode  
+3. Paste it after your prompt in RealAI  
+4. Submit  
 
-No prompt engineering experience required.
+The optimizer will refine and execute automatically.
+
+---
+
+## Intended Use Cases
+
+- Real estate and investment analysis  
+- Underwriting support  
+- Market research and memos  
+- Investment committee preparation  
+- Content creation and thought leadership  
+- Workflow standardization across teams  
+- Training analysts to use LLMs consistently  
+- Reducing prompt iteration cycles  
 
 ---
 
