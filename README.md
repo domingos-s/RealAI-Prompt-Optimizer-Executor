@@ -107,21 +107,6 @@ An optional advanced override allows forcing:
 
 ---
 
-# 📁 Repository Structure
-
-RealAI-Prompt-Optimizer-Executor/
-│
-├── RealAIPromptOptimizer-AnalystMode.yaml  
-├── RealAIPromptOptimizer-ResearchMode.yaml  
-├── RealAIPromptOptimizer-ModeSelector.yaml  
-├── index.html   (live web tool)  
-└── README.md  
-
-Each YAML file is fully self-contained and usable independently.  
-The web tool dynamically pulls them from GitHub via raw URLs.
-
----
-
 # Why This Exists
 
 Natural language prompts often contain:
