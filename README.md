@@ -25,8 +25,7 @@ Together, they allow RealAI to function as:
 
 # 🚀 Live Web Tool
 
-👉 https://domingos-s.github.io/RealAI-Prompt-Optimizer-Executor/  
-👉 Repo: https://github.com/domingos-s/RealAI-Prompt-Optimizer-Executor/
+👉 https://domingos-s.github.io/RealAI-Prompt-Optimizer-Executor/
 
 A production-ready static interface is included in this repo.
 
