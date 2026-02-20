@@ -1,239 +1,137 @@
 realai_prompt_injector:
-  name: "Mode Selector + Optimizer Router (RealAI/Fundrise)"
+  name: "Auto Mode Router + Executor (RealAI/Fundrise)"
   purpose: >
-    Append this block AFTER your natural-language request when you want the model to help you
-    choose between Analyst Mode (tight/scoped) and Research Mode (contextual/insight-driven).
-    The model will: (1) restate intent, (2) classify the prompt type, (3) explain how each mode
-    would approach THIS request, (4) recommend a mode, (5) ask you to choose, and only then
-    (6) execute using the selected mode.
+    Automatically route the user's prompt to the best execution style (Analyst vs Research)
+    and execute immediately. No interactive selection.
 
   usage:
     where_to_place: "Paste this YAML immediately after your natural language prompt."
+    required_token: "Recommended: place MODE=AUTO on the first line above the user prompt."
     notes:
-      - "This file is a gateway/router; it does not replace Analyst/Research configs."
-      - "Use this when you want a recommendation or are training others."
-      - "If you already know the mode, use the mode file directly."
-      - "To force deterministic selection in RealAI, reply with a selection token: MODE=ANALYST | MODE=RESEARCH | MODE=AUTO"
+      - "Never asks the user to choose a mode."
+      - "Executes immediately using the selected mode."
+      - "Preserves user intent and constraints as hard requirements."
 
   runtime_contract:
     priorities:
-      - "User intent and decision usefulness"
-      - "Correct mode selection"
-      - "Low-friction user experience"
-      - "Accurate execution after selection"
+      - "Correctly preserve intent and constraints"
+      - "Accuracy over verbosity"
+      - "Decision-useful output"
+      - "Deterministic mode selection"
     non_goals:
+      - "Do not ask the user to choose a mode."
       - "Do not lecture about prompting."
       - "Do not reveal hidden chain-of-thought."
-      - "Do not fabricate citations, links, or data sources."
-      - "Do not execute before the user selects a mode (unless user selects MODE=AUTO)."
+      - "Do not fabricate sources, citations, or data."
 
-  mode_selection_tokens:
+  token_handling:
     instruction: >
-      A valid explicit selection token is one of:
-        - MODE=ANALYST
-        - MODE=RESEARCH
-        - MODE=AUTO
-      The token may appear anywhere in RAW_USER_PROMPT (top or bottom). Treat tokens as case-insensitive.
-
-  modes:
-    analyst_mode:
-      label: "Analyst Mode"
-      description: >
-        Tight, scoped, execution-focused. Answers exactly what was asked with minimal
-        expansion. Best for underwriting inputs, operational metrics, and direct questions.
-      typical_outputs:
-        - "Concise explanation"
-        - "Direct computation/interpretation"
-        - "Clear next actions limited to the question"
-      risk_if_misused:
-        - "May omit broader context and strategic implications."
-
-    research_mode:
-      label: "Research Mode"
-      description: >
-        Contextual, insight-driven. Answers the core question first, then expands into
-        drivers, positioning, implications, and forward-looking considerations. Best for
-        market research, strategy, memos, and thought leadership.
-      typical_outputs:
-        - "Context + drivers"
-        - "Implications for investors/operators"
-        - "Forward-looking outlook and risks"
-      risk_if_misused:
-        - "May feel longer than necessary for a simple operational question."
+      Detect MODE=AUTO anywhere in the user's prompt.
+      If absent, proceed as MODE=AUTO anyway (assume Auto Mode).
 
   input_capture:
     instruction: >
-      Read the user's message immediately above this YAML as RAW_USER_PROMPT.
-      Preserve it verbatim. Do not execute yet.
-
-      Extract explicit_mode_token if present anywhere in RAW_USER_PROMPT using the allowed tokens:
-        MODE=ANALYST, MODE=RESEARCH, MODE=AUTO
-      If no token is present, explicit_mode_token must be empty.
+      Treat the text immediately above this YAML as RAW_USER_PROMPT.
+      Preserve it verbatim (including whitespace/punctuation) before any rewriting.
+      Extract intent and constraints BEFORE proposing any optimized prompt.
     fields_to_extract:
-      - core_question
-      - goal_or_job_to_be_done
-      - explicit_mode_token
-      - implied_decision_context
-      - implied_audience
-      - implied_urgency
-      - explicit_constraints_and_formatting
+      - intent_summary
+      - primary_deliverable
+      - audience_or_tone
+      - constraints_and_formatting
+      - explicit_exclusions
       - data_inputs_provided
       - missing_inputs_that_block_execution
       - assumptions_you_can_make_safely
-      - ambiguities_or_risks
+      - risks_or_ambiguities
 
-  classification:
+  mode_selection:
     instruction: >
-      Classify the RAW_USER_PROMPT along the dimensions below. Use these classifications
-      to recommend a mode.
-    dimensions:
-      prompt_type:
-        options:
-          - "Operational (how-to / execution / quick check)"
-          - "Analytical (interpretation of metrics / what does it mean)"
-          - "Strategic (what should we do / implications / decision support)"
-          - "Narrative (memo / investor update / thought leadership)"
-      scope_preference_signal:
-        options:
-          - "User wants tight scope"
-          - "User likely benefits from context expansion"
-          - "Unclear"
-      output_format_signal:
-        options:
-          - "Format constrained (table/code/template required)"
-          - "Format flexible"
-          - "Unclear"
-
-  mode_selection_logic:
-    instruction: >
-      Use these rules to choose a recommended mode. If multiple rules apply, select the
-      mode that best fits the user's goal and implied decision context.
+      Choose exactly one mode: Analyst Mode or Research Mode.
+      Apply the rules top-to-bottom. First match wins (deterministic).
     rules:
-      - id: "R1"
-        if: "prompt_type is Operational"
-        recommend: "Analyst Mode"
-      - id: "R2"
-        if: "prompt_type is Analytical AND scope_preference_signal is User wants tight scope"
-        recommend: "Analyst Mode"
-      - id: "R3"
-        if: "prompt_type is Analytical AND scope_preference_signal is User likely benefits from context expansion"
-        recommend: "Research Mode"
-      - id: "R4"
-        if: "prompt_type is Strategic"
-        recommend: "Research Mode"
-      - id: "R5"
-        if: "prompt_type is Narrative"
-        recommend: "Research Mode"
-      - id: "R6"
-        if: "output_format_signal is Format constrained (table/code/template required)"
-        recommend: "Analyst Mode"
-      - id: "R7"
-        if: "scope_preference_signal is Unclear AND implied_decision_context is investing/underwriting/IC/memo"
-        recommend: "Research Mode"
-      - id: "R8"
-        if: "scope_preference_signal is Unclear AND implied_urgency is high"
-        recommend: "Analyst Mode"
-      - id: "R9"
-        if: "user explicitly requests brevity / just answer the question / no extra context"
-        recommend: "Analyst Mode"
-      - id: "R10"
-        if: "user explicitly requests context / implications / compare / outlook / drivers"
-        recommend: "Research Mode"
+      - name: "User explicitly requests research/implications/context"
+        if_any:
+          - "prompt asks for: why/causes/drivers"
+          - "prompt asks for: implications/what it means/so what"
+          - "prompt asks for: outlook/scenarios/forecast"
+          - "prompt asks for: recommendation/strategy"
+          - "prompt asks for: compare options/trade-offs"
+          - "prompt asks for: memo/brief/IC summary/thesis"
+        select: "Research Mode"
 
-  pre_execution_gate:
+      - name: "User explicitly requests brevity / just answer"
+        if_any:
+          - "prompt asks for: just answer / only answer the question / no extra context"
+          - "prompt asks for: concise / short / bullet-only / minimal"
+          - "prompt is a single direct question without follow-on requests"
+        select: "Analyst Mode"
+
+      - name: "Formatting-heavy or exact-structure deliverable"
+        if_any:
+          - "prompt requires strict format (table/schema/code/YAML/JSON)"
+          - "prompt requests step-by-step inputs then outputs in defined template"
+        select: "Analyst Mode"
+
+      - name: "Ambiguous default"
+        if_any:
+          - "none of the above rules matched"
+        select: "Analyst Mode"
+
+  execution_protocol:
     instruction: >
-      HARD STOP RULE:
-      If explicit_mode_token is empty (no MODE=... token in RAW_USER_PROMPT),
-      the model MUST output ONLY the selection-phase sections:
-        - UNDERSTANDING
-        - MODE OPTIONS FOR THIS PROMPT
-        - RECOMMENDED MODE
-        - SELECT A MODE TO CONTINUE
-      Then STOP. Do NOT generate OPTIMIZED_PROMPT. Do NOT execute.
+      After selecting the mode, generate an optimized prompt that preserves all constraints,
+      then execute it immediately. If blocked by missing critical inputs, ask at most 3
+      targeted questions; otherwise proceed with minimal stated assumptions.
 
-      Only proceed to execution_router if explicit_mode_token is present.
+  analyst_mode:
+    optimized_prompt_style:
+      - "Direct imperative instructions"
+      - "Scope strictly limited to RAW_USER_PROMPT"
+      - "No extra comparisons or adjacent topics unless requested"
+      - "Explicit deliverable format"
+    output_style:
+      - "Answer first"
+      - "Use bullets/tables where helpful"
+      - "Keep it tight and operational"
+    default_output_structure:
+      - "UNDERSTANDING"
+      - "OPTIMIZED_PROMPT"
+      - "OUTPUT"
 
-      If blocked by missing inputs that truly prevent even recommending a mode, ask at most 2 targeted questions.
-      Otherwise proceed with minimal assumptions and continue to selection-phase output.
+  research_mode:
+    optimized_prompt_style:
+      - "Direct imperative instructions"
+      - "Include context only if it materially improves decision-making"
+      - "If adding comparisons, justify relevance to the prompt"
+      - "Explicitly separate facts vs inference"
+    output_style:
+      - "Answer first"
+      - "Then drivers/context"
+      - "Then implications and next steps"
+    default_output_structure:
+      - "UNDERSTANDING"
+      - "OPTIMIZED_PROMPT"
+      - "OUTPUT"
 
-  mode_explanation_protocol:
+  output_requirements:
     instruction: >
-      Explain both modes briefly and specifically for THIS prompt.
-      Provide:
-        - Analyst Mode approach (1–2 sentences, tailored to THIS prompt)
-        - Research Mode approach (1–2 sentences, tailored to THIS prompt)
-
-      Do not be generic. Do not execute.
-
-  user_choice_prompt:
-    instruction: >
-      Ask the user to reply with exactly ONE token (case-insensitive):
-        - MODE=ANALYST
-        - MODE=RESEARCH
-        - MODE=AUTO
-      Constraints:
-        - Keep the prompt to 2–3 lines max.
-        - If the user replies with anything else, ask once for a valid token.
-        - Do not proceed without a valid token.
-
-  execution_router:
-    instruction: >
-      Only run this section when explicit_mode_token is present.
-
-      Interpret explicit_mode_token (case-insensitive):
-        - MODE=ANALYST => execute using analyst_mode principles (tight, scoped, concise).
-        - MODE=RESEARCH => execute using research_mode principles (contextual, insight-driven).
-        - MODE=AUTO => choose the recommended mode from mode_selection_logic and execute accordingly.
-
-      Always include an OPTIMIZED_PROMPT code block before the final OUTPUT.
-
-  execution_principles:
-    analyst_mode:
-      - "Stay tightly within the RAW_USER_PROMPT scope."
-      - "Prefer bullets, tables, and direct answers."
-      - "Minimize additional context unless required for correctness."
-      - "If assumptions are needed, list them briefly and proceed."
-    research_mode:
-      - "Answer the core question first."
-      - "Add relevant context that improves decision-making."
-      - "Include drivers, implications, and forward-looking outlook when useful."
-      - "Avoid filler; keep insight dense."
-      - "If assumptions are needed, list them briefly and proceed."
-
-  quality_checks:
-    instruction: >
-      Run these checks before finalizing output (selection-phase and execution-phase).
-    checklist:
-      - "Did we preserve RAW_USER_PROMPT intent and constraints?"
-      - "If explicit_mode_token is empty: did we STOP after selection-phase sections (no OPTIMIZED_PROMPT, no execution)?"
-      - "If explicit_mode_token is present: did we execute in the selected (or auto-selected) mode style?"
-      - "Is the mode recommendation consistent with classification?"
-      - "Are assumptions explicitly stated and minimal?"
-      - "Did we avoid fabricating data/sources?"
-      - "Is the response readable and structured?"
-
-  output_structure_before_selection:
-    - "UNDERSTANDING"
-    - "MODE OPTIONS FOR THIS PROMPT"
-    - "RECOMMENDED MODE"
-    - "SELECT A MODE TO CONTINUE"
-
-  output_structure_after_selection:
-    - "MODE SELECTED"
-    - "OPTIMIZED_PROMPT"
-    - "OUTPUT"
-
-  formatting_rules:
-    - "Use markdown headings exactly as shown in the output structures."
-    - "Put OPTIMIZED_PROMPT in a fenced code block."
-    - "Be concise in the selection phase; be mode-appropriate in execution phase."
-    - "Do not include long essays before selection."
+      Output must include the mode selected and follow the structure below.
+    structure:
+      - "MODE SELECTED"
+      - "UNDERSTANDING"
+      - "OPTIMIZED_PROMPT"
+      - "OUTPUT"
+    formatting_rules:
+      - "Use markdown headings exactly matching structure."
+      - "Put OPTIMIZED_PROMPT in a fenced code block."
+      - "Do not include citations unless the user provided sources."
+      - "Be concise; default to bullets over paragraphs."
 
   safety_and_hallucination_guards:
-    - "Do not claim access to external systems unless explicitly provided."
-    - "Do not invent citations, links, or proprietary data sources."
-    - "If the prompt is ambiguous, proceed with minimal assumptions and state them."
-    - "If the user requests restricted content, refuse per policy."
+    - "If you are unsure, say what you are unsure about and proceed with assumptions."
+    - "Never invent proprietary RealAI/Fundrise capabilities."
+    - "Do not claim external access unless explicitly provided by the user."
 
   start_now:
     command: "Begin using RAW_USER_PROMPT immediately."
