@@ -14,7 +14,7 @@ The framework includes **three operating modes**:
 
 - **Analyst Mode** → tight, scoped, execution-focused  
 - **Research Mode** → contextual, insight-driven  
-- **Mode Selector** → recommends or routes to the best mode  
+- **Auto Mode** → intelligent routing to the best mode  
 
 Together, they allow RealAI to function as:
 - A disciplined analyst  
@@ -25,7 +25,8 @@ Together, they allow RealAI to function as:
 
 # 🚀 Live Web Tool
 
-👉 https://domingos-s.github.io/RealAI-Prompt-Optimizer-Executor/
+👉 https://domingos-s.github.io/RealAI-Prompt-Optimizer-Executor/  
+👉 Repo: https://github.com/domingos-s/RealAI-Prompt-Optimizer-Executor/
 
 A production-ready static interface is included in this repo.
 
@@ -47,90 +48,7 @@ No manual YAML handling required.
 
 ---
 
-# 🧠 Mode Selector (Updated Behavior)
-
-Mode Selector now supports **interactive selection** and **auto-execution**.
-
-### Interactive Mode Selector
-When used without a mode token:
-
-RealAI will:
-1. Read the prompt  
-2. Explain how Analyst vs Research would approach it  
-3. Recommend a mode  
-4. Ask the user to choose  
-5. Pause execution  
-
-User then replies with:
-
-MODE=ANALYST  
-MODE=RESEARCH  
-MODE=AUTO  
-
-Execution proceeds after selection.
-
-### Auto Mode Selector
-When MODE=AUTO is present:
-
-- RealAI recommends a mode internally  
-- Immediately executes  
-- No pause or follow-up required  
-
-### Why this exists
-Some workflows require deliberate mode choice.  
-Others require speed.
-
-Mode Selector now supports both.
-
----
-
-# 🧰 Web Tool Mode Options
-
-The web interface provides four selections:
-
-**Analyst Mode**  
-Direct execution using Analyst YAML.
-
-**Research Mode**  
-Direct execution using Research YAML.
-
-**Mode Selector (interactive)**  
-RealAI explains modes and asks user to choose.
-
-**Mode Selector (auto-execute)**  
-Prepends MODE=AUTO and executes immediately.
-
-An optional advanced override allows forcing:
-- MODE=ANALYST  
-- MODE=RESEARCH  
-- MODE=AUTO  
-
----
-
-# Why This Exists
-
-Natural language prompts often contain:
-- Ambiguity  
-- Missing structure  
-- Unclear deliverables  
-
-This framework acts as a **prompt quality layer** that standardizes execution inside RealAI.
-
-Instead of iterative prompt tweaking, it:
-
-- Preserves intent  
-- Clarifies constraints  
-- Defines success criteria  
-- Removes fluff  
-- Converts requests into executable instructions  
-- Executes immediately  
-
-Result:  
-**Faster, more reliable, institutional-grade outputs.**
-
----
-
-# Modes
+# 🧠 Modes
 
 ## Analyst Mode
 **Purpose:** Precision and scoped execution  
@@ -176,24 +94,84 @@ Think:
 
 ---
 
-## Mode Selector
-**Purpose:** Intelligent routing + execution control  
+## Auto Mode (Intelligent Router)
+**Purpose:** Automatically select the best execution mode and run  
 
-Best for:
-- Unsure which mode fits  
-- Training teams  
-- Mixed analytical/strategic questions  
-- New workflows  
+Auto Mode analyzes the user’s prompt and chooses between:
+- Analyst Mode
+- Research Mode
 
-Capabilities:
-- Interprets prompt  
-- Explains both approaches  
-- Recommends mode  
-- Allows user selection  
-- Executes after selection or auto  
+It then optimizes and executes immediately.
 
-Think:  
-**Workflow router for RealAI.**
+### When Auto Mode chooses Analyst
+- Direct question  
+- Metrics interpretation  
+- Formatting-heavy requests  
+- “Just answer” style prompts  
+- Strict scope or output requirements  
+
+### When Auto Mode chooses Research
+- Strategy or implications requested  
+- Market drivers or outlook requested  
+- Investment framing or recommendations  
+- Comparative analysis  
+- Memo or narrative outputs  
+
+### Why Auto Mode exists
+Most users don’t want to decide which mode to use.
+
+Auto Mode:
+- Interprets prompt intent  
+- Selects best execution style  
+- Preserves constraints  
+- Executes immediately  
+
+Result:  
+**Fast, decision-useful output with zero prompt engineering.**
+
+---
+
+# 🧰 Web Tool Mode Options
+
+The web interface provides three selections:
+
+**Analyst Mode**  
+Direct execution using Analyst YAML.
+
+**Research Mode**  
+Direct execution using Research YAML.
+
+**Auto Mode (Recommended)**  
+Automatically selects best mode and executes.
+
+When Auto Mode is selected, the web tool prepends:
+
+MODE=AUTO
+
+and appends the Auto Router YAML.
+
+---
+
+# Why This Exists
+
+Natural language prompts often contain:
+- Ambiguity  
+- Missing structure  
+- Unclear deliverables  
+
+This framework acts as a **prompt quality layer** that standardizes execution inside RealAI.
+
+Instead of iterative prompt tweaking, it:
+
+- Preserves intent  
+- Clarifies constraints  
+- Defines success criteria  
+- Removes fluff  
+- Converts requests into executable instructions  
+- Executes immediately  
+
+Result:  
+**Faster, more reliable, institutional-grade outputs.**
 
 ---
 
@@ -229,6 +207,19 @@ Use the web tool:
 
 ---
 
+# Architecture
+
+This repo contains:
+
+- Analyst Mode YAML  
+- Research Mode YAML  
+- Auto Router YAML  
+- Static web interface (index.html)  
+
+The web interface dynamically loads YAML files and assembles the optimized prompt for easy copying into RealAI.
+
+---
+
 # Design Philosophy
 
 **The user should only state what they want.  
@@ -238,7 +229,7 @@ By separating:
 
 - Analyst Mode → precision  
 - Research Mode → insight  
-- Mode Selector → guidance  
+- Auto Mode → intelligent routing  
 
 …the framework becomes a reusable execution layer for RealAI.
 
