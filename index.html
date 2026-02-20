@@ -75,23 +75,6 @@
     details{ margin-top: 10px; }
     summary{ cursor:pointer; font-weight:700; }
     code{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
-    .small{ font-size: 12px; opacity: .75; margin-top: 8px; }
-    .advanced-panel{
-      margin-top: 10px;
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid rgba(127,127,127,.25);
-      background: rgba(127,127,127,.04);
-      display: none;
-    }
-    .advanced-grid{
-      display:grid;
-      grid-template-columns: 1fr;
-      gap: 8px;
-    }
-    @media (min-width: 560px){
-      .advanced-grid{ grid-template-columns: 240px 1fr; align-items:center; }
-    }
   </style>
 </head>
 
@@ -122,25 +105,8 @@
       <select id="mode">
         <option value="analyst">Analyst Mode (tight + scoped)</option>
         <option value="research">Research Mode (context + implications)</option>
-        <option value="selector_interactive">Mode Selector (interactive — asks you to choose)</option>
-        <option value="selector_auto">Mode Selector (auto-execute — picks a mode and runs)</option>
+        <option value="auto">Auto Mode (router chooses + executes)</option>
       </select>
-
-      <!-- Advanced override (only visible for Mode Selector AUTO) -->
-      <div id="advancedPanel" class="advanced-panel">
-        <div class="advanced-grid">
-          <label for="modeTokenOverride" style="margin:0;">Advanced: token override</label>
-          <select id="modeTokenOverride">
-            <option value="">(none)</option>
-            <option value="MODE=ANALYST">MODE=ANALYST — force Analyst execution</option>
-            <option value="MODE=RESEARCH">MODE=RESEARCH — force Research execution</option>
-            <option value="MODE=AUTO">MODE=AUTO — force Auto execution</option>
-          </select>
-        </div>
-        <div class="small">
-          Most users can ignore this. It prepends a MODE token above your prompt when using Mode Selector (auto-execute).
-        </div>
-      </div>
 
       <div class="buttons">
         <button id="copyCombined" class="primary">Copy Combined Prompt</button>
@@ -151,6 +117,7 @@
 
       <div class="hint">
         “Copy Combined Prompt” appends the selected YAML file after your prompt with a blank line separator.
+        Auto Mode prepends <code>MODE=AUTO</code> above your prompt and appends the Mode Selector YAML.
       </div>
 
       <div id="status" class="status"></div>
@@ -223,9 +190,6 @@
     const srcR = document.getElementById('srcR');
     const srcS = document.getElementById('srcS');
 
-    const advancedPanelEl = document.getElementById('advancedPanel');
-    const modeTokenOverrideEl = document.getElementById('modeTokenOverride');
-
     // =========================
     // YAML URLS + STORE
     // =========================
@@ -260,13 +224,10 @@
       window.setTimeout(() => { statusEl.style.display = "none"; }, 2600);
     }
 
-    function isModeSelectorSelected() {
-      return modeEl.value === "selector_interactive" || modeEl.value === "selector_auto";
-    }
-
     function getYamlKeyForCurrentMode() {
       if (modeEl.value === "analyst") return "analyst";
       if (modeEl.value === "research") return "research";
+      // auto
       return "selector";
     }
 
@@ -304,53 +265,27 @@
       return await resp.text();
     }
 
-    function computeModeTokenForSelectorAuto() {
-      // Only relevant for selector_auto
-      const override = (modeTokenOverrideEl.value || "").trim();
-      if (override) return override;
-      return "MODE=AUTO";
-    }
-
     function buildCombinedText() {
       const promptRaw = (nlPromptEl.value || '').trimEnd();
       const yaml = (getYamlForCurrentMode() || '').trim();
 
-      // allow YAML-only copy
+      // Allow YAML-only copy
       if (!promptRaw) return yaml;
 
-      // still useful if YAML hasn't loaded
+      // If YAML not loaded yet, still return something useful
       if (!yaml) return promptRaw;
 
-      // MODE SELECTOR (INTERACTIVE): YAML FIRST, THEN PROMPT
-      // This forces RealAI to see the gating instructions before it starts answering.
-      if (modeEl.value === "selector_interactive") {
-        return yaml + "\n\n" + promptRaw;
-      }
-
-      // MODE SELECTOR (AUTO): token + prompt, then YAML
-      if (modeEl.value === "selector_auto") {
-        const token = computeModeTokenForSelectorAuto();
-        const promptWithToken = token ? (token + "\n" + promptRaw) : promptRaw;
+      // AUTO MODE: prepend MODE=AUTO above prompt, then append ModeSelector YAML
+      if (modeEl.value === "auto") {
+        const promptWithToken = "MODE=AUTO\n" + promptRaw;
         return promptWithToken + "\n\n" + yaml;
       }
 
-      // ANALYST / RESEARCH: prompt then YAML (unchanged)
+      // ANALYST / RESEARCH: prompt then YAML
       return promptRaw + "\n\n" + yaml;
     }
 
-    function updateAdvancedPanelVisibility() {
-      // Show token override ONLY for Mode Selector (auto-execute)
-      // Hide it for Mode Selector (interactive) to avoid confusion.
-      const showAdvanced = (modeEl.value === "selector_auto");
-      advancedPanelEl.style.display = showAdvanced ? "block" : "none";
-
-      if (!showAdvanced) {
-        modeTokenOverrideEl.value = "";
-      }
-    }
-
     function updatePreview() {
-      updateAdvancedPanelVisibility();
       previewEl.value = buildCombinedText();
 
       const hasPrompt = (nlPromptEl.value || '').trim().length > 0;
@@ -443,7 +378,6 @@
     // =========================
     nlPromptEl.addEventListener('input', updatePreview);
     modeEl.addEventListener('change', updatePreview);
-    modeTokenOverrideEl.addEventListener('change', updatePreview);
 
     copyCombinedBtn.addEventListener('click', async () => {
       const prompt = (nlPromptEl.value || '').trim();
@@ -466,7 +400,6 @@
 
     clearBtn.addEventListener('click', () => {
       nlPromptEl.value = "";
-      modeTokenOverrideEl.value = "";
       updatePreview();
       showStatus(true, "Cleared.");
       nlPromptEl.focus();
