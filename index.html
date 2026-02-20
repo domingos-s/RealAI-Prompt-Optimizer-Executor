@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>RealAI Prompt Optimizer + Executor</title>
+  <meta name="description" content="Paste a natural language prompt, choose a mode, and copy the combined prompt + YAML for RealAI." />
+  <style>
+    :root { color-scheme: light dark; }
+    body{
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      margin:0; padding:24px; max-width: 1024px; margin-inline:auto; line-height:1.35;
+    }
+    h1{ font-size:20px; margin:0 0 8px; }
+    p{ margin:0 0 14px; opacity:.9; }
+    a{ color: inherit; }
+    .row{ display:grid; grid-template-columns:1fr; gap:12px; }
+    @media (min-width: 900px){ .row{ grid-template-columns: 1fr 1fr; } }
+    .card{
+      border:1px solid rgba(127,127,127,.25);
+      border-radius:14px;
+      padding:14px;
+      background: rgba(127,127,127,.05);
+    }
+    label{ font-weight:700; display:block; margin:0 0 6px; }
+    textarea, select{
+      width:100%; box-sizing:border-box;
+      padding:10px 12px; border-radius:10px;
+      border:1px solid rgba(127,127,127,.35);
+      background: transparent; font: inherit;
+    }
+    textarea{ min-height: 190px; resize: vertical; }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    .buttons{ display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; }
+    button{
+      border:1px solid rgba(127,127,127,.35);
+      border-radius:999px;
+      padding:10px 14px;
+      background: rgba(127,127,127,.08);
+      font-weight:800;
+      cursor:pointer;
+    }
+    button.primary{
+      background: rgba(0,120,255,.18);
+      border-color: rgba(0,120,255,.35);
+    }
+    button:disabled{ opacity:.5; cursor:not-allowed; }
+    .hint{ font-size:12px; opacity:.75; margin-top:8px; }
+    .status{
+      margin-top:10px; font-size:13px;
+      padding:10px 12px; border-radius:10px;
+      border:1px solid rgba(127,127,127,.25);
+      display:none;
+    }
+    .status.ok{ display:block; border-color: rgba(0,160,80,.35); background: rgba(0,160,80,.10); }
+    .status.err{ display:block; border-color: rgba(220,60,60,.35); background: rgba(220,60,60,.10); }
+    .inline{
+      display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+      margin-top: 8px;
+      font-size: 12px;
+      opacity: .85;
+    }
+    .pill{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:6px 10px;
+      border:1px solid rgba(127,127,127,.25);
+      border-radius: 999px;
+      background: rgba(127,127,127,.06);
+    }
+    .dot{
+      width:8px; height:8px; border-radius:999px; background: rgba(127,127,127,.55);
+    }
+    .dot.good{ background: rgba(0,160,80,.85); }
+    .dot.bad{ background: rgba(220,60,60,.85); }
+    footer{ margin-top: 18px; opacity:.75; font-size:12px; }
+    details{ margin-top: 10px; }
+    summary{ cursor:pointer; font-weight:700; }
+    code{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+  </style>
+</head>
+
+<body>
+  <h1>RealAI Prompt Optimizer + Executor</h1>
+  <p>
+    Paste your natural language prompt, choose a mode, then copy the combined prompt (prompt + YAML) for easy pasting into RealAI.
+  </p>
+
+  <div class="inline">
+    <span class="pill">
+      <span id="yamlDot" class="dot"></span>
+      <span id="yamlStatusText">Loading YAML from GitHub…</span>
+    </span>
+    <span class="pill">
+      Repo: <a id="repoLink" href="https://github.com/domingos-s/RealAI-Prompt-Optimizer-Executor" target="_blank" rel="noreferrer">RealAI-Prompt-Optimizer-Executor</a>
+    </span>
+  </div>
+
+  <div class="row" style="margin-top:12px;">
+    <div class="card">
+      <label for="nlPrompt">Natural language prompt</label>
+      <textarea id="nlPrompt" placeholder="Example: Help me understand current loss to lease in the Phoenix MSA."></textarea>
+
+      <div style="height: 10px;"></div>
+
+      <label for="mode">Mode</label>
+      <select id="mode">
+        <option value="analyst">Analyst Mode (tight + scoped)</option>
+        <option value="research">Research Mode (context + implications)</option>
+        <option value="selector">Mode Selector (asks you to choose)</option>
+      </select>
+
+      <div class="buttons">
+        <button id="copyCombined" class="primary">Copy Combined Prompt</button>
+        <button id="copyYaml">Copy YAML Only</button>
+        <button id="refreshYaml">Refresh YAML</button>
+        <button id="clear">Clear</button>
+      </div>
+
+      <div class="hint">
+        “Copy Combined Prompt” appends the selected YAML file after your prompt with a blank line separator.
+      </div>
+
+      <div id="status" class="status"></div>
+
+      <details>
+        <summary>Advanced</summary>
+        <div class="hint">
+          This tool pulls YAML from your GitHub repo via raw file URLs and caches the last successful fetch in <code>localStorage</code>.
+          If GitHub is unreachable, it will fall back to cached YAML (if available).
+        </div>
+        <div class="hint">
+          Current source URLs:
+          <ul>
+            <li><code id="srcA"></code></li>
+            <li><code id="srcR"></code></li>
+            <li><code id="srcS"></code></li>
+          </ul>
+        </div>
+      </details>
+    </div>
+
+    <div class="card">
+      <label for="preview">Preview (what will be copied)</label>
+      <textarea id="preview" class="mono" readonly></textarea>
+      <div class="hint">
+        Clipboard note: One-tap clipboard often requires HTTPS (GitHub Pages is HTTPS). A fallback copy method is included.
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Tip: Host this page with GitHub Pages so it stays in sync with your YAML files.
+  </footer>
+
+  <script>
+    // =========================
+    // CONFIG — UPDATE IF NEEDED
+    // =========================
+    const REPO_OWNER = "domingos-s";
+    const REPO_NAME  = "RealAI-Prompt-Optimizer-Executor";
+    const REPO_BRANCH = "main";
+
+    // Filenames must match your repo.
+    const FILE_ANALYST  = "RealAIPromptOptimizer-AnalystMode.yaml";
+    const FILE_RESEARCH = "RealAIPromptOptimizer-ResearchMode.yaml";
+    const FILE_SELECTOR = "RealAIPromptOptimizer-ModeSelector.yaml";
+
+    // Raw GitHub base
+    const RAW_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}/`;
+
+    // LocalStorage cache keys
+    const CACHE_PREFIX = "realai_prompt_optimizer_cache_v1";
+    const CACHE_KEYS = {
+      analyst:  `${CACHE_PREFIX}_analyst`,
+      research: `${CACHE_PREFIX}_research`,
+      selector: `${CACHE_PREFIX}_selector`,
+      stamp:    `${CACHE_PREFIX}_timestamp`
+    };
+
+    // =========================
+    // ELEMENTS
+    // =========================
+    const nlPromptEl = document.getElementById('nlPrompt');
+    const modeEl = document.getElementById('mode');
+    const previewEl = document.getElementById('preview');
+
+    const copyCombinedBtn = document.getElementById('copyCombined');
+    const copyYamlBtn = document.getElementById('copyYaml');
+    const refreshYamlBtn = document.getElementById('refreshYaml');
+    const clearBtn = document.getElementById('clear');
+
+    const statusEl = document.getElementById('status');
+    const yamlDot = document.getElementById('yamlDot');
+    const yamlStatusText = document.getElementById('yamlStatusText');
+
+    const srcA = document.getElementById('srcA');
+    const srcR = document.getElementById('srcR');
+    const srcS = document.getElementById('srcS');
+
+    // =========================
+    // RUNTIME YAML STORE
+    // =========================
+    const yamlStore = {
+      analyst: null,
+      research: null,
+      selector: null
+    };
+
+    const yamlUrls = {
+      analyst:  RAW_BASE + FILE_ANALYST,
+      research: RAW_BASE + FILE_RESEARCH,
+      selector: RAW_BASE + FILE_SELECTOR
+    };
+
+    srcA.textContent = yamlUrls.analyst;
+    srcR.textContent = yamlUrls.research;
+    srcS.textContent = yamlUrls.selector;
+
+    // =========================
+    // HELPERS
+    // =========================
+    function setYamlStatus(ok, text) {
+      yamlDot.className = "dot " + (ok ? "good" : "bad");
+      yamlStatusText.textContent = text;
+    }
+
+    function showStatus(ok, msg) {
+      statusEl.className = "status " + (ok ? "ok" : "err");
+      statusEl.textContent = msg;
+      statusEl.style.display = "block";
+      window.setTimeout(() => { statusEl.style.display = "none"; }, 2600);
+    }
+
+    function getYamlForMode(mode) {
+      if (mode === 'analyst') return yamlStore.analyst;
+      if (mode === 'research') return yamlStore.research;
+      return yamlStore.selector;
+    }
+
+    function buildCombinedText() {
+      const prompt = (nlPromptEl.value || '').trimEnd();
+      const yaml = (getYamlForMode(modeEl.value) || '').trim();
+      if (!prompt) return yaml; // allows YAML-only copy even if prompt empty
+      if (!yaml) return prompt; // in case YAML hasn't loaded yet
+      return prompt + "\n\n" + yaml;
+    }
+
+    function updatePreview() {
+      previewEl.value = buildCombinedText();
+      const hasPrompt = (nlPromptEl.value || '').trim().length > 0;
+      copyCombinedBtn.disabled = !hasPrompt;
+      copyYamlBtn.disabled = !getYamlForMode(modeEl.value);
+    }
+
+    async function copyText(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch (e) {
+        // fallback
+        try {
+          const temp = document.createElement('textarea');
+          temp.value = text;
+          temp.setAttribute('readonly', '');
+          temp.style.position = 'absolute';
+          temp.style.left = '-9999px';
+          document.body.appendChild(temp);
+          temp.select();
+          temp.setSelectionRange(0, temp.value.length);
+          const ok = document.execCommand('copy');
+          document.body.removeChild(temp);
+          return ok;
+        } catch (e2) {
+          return false;
+        }
+      }
+    }
+
+    function cacheYaml(mode, text) {
+      try { localStorage.setItem(CACHE_KEYS[mode], text); } catch (_) {}
+    }
+
+    function loadCachedYaml(mode) {
+      try { return localStorage.getItem(CACHE_KEYS[mode]); } catch (_) { return null; }
+    }
+
+    function setCacheStamp() {
+      try { localStorage.setItem(CACHE_KEYS.stamp, new Date().toISOString()); } catch (_) {}
+    }
+
+    function getCacheStamp() {
+      try { return localStorage.getItem(CACHE_KEYS.stamp); } catch (_) { return null; }
+    }
+
+    async function fetchText(url) {
+      const resp = await fetch(url, { cache: "no-store" });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status} for ${url}`);
+      return await resp.text();
+    }
+
+    function validateYamlLooksReasonable(yamlText) {
+      // Lightweight sanity checks (not a full YAML parser).
+      if (!yamlText) return false;
+      const t = yamlText.trim();
+      if (t.length < 40) return false;
+      // Expect top-level key in these configs:
+      if (!t.includes("realai_prompt_injector:")) return false;
+      return true;
+    }
+
+    async function loadYamlFromGitHub() {
+      setYamlStatus(false, "Loading YAML from GitHub…");
+
+      const results = { analyst: null, research: null, selector: null };
+      const errors = [];
+
+      // Fetch in parallel
+      const entries = Object.entries(yamlUrls);
+      await Promise.all(entries.map(async ([mode, url]) => {
+        try {
+          const txt = await fetchText(url);
+          if (!validateYamlLooksReasonable(txt)) {
+            throw new Error(`YAML failed sanity check for ${mode}`);
+          }
+          results[mode] = txt;
+        } catch (e) {
+          errors.push({ mode, error: String(e) });
+        }
+      }));
+
+      const allOk = results.analyst && results.research && results.selector;
+
+      if (allOk) {
+        yamlStore.analyst  = results.analyst;
+        yamlStore.research = results.research;
+        yamlStore.selector = results.selector;
+
+        cacheYaml("analyst", results.analyst);
+        cacheYaml("research", results.research);
+        cacheYaml("selector", results.selector);
+        setCacheStamp();
+
+        const stamp = getCacheStamp();
+        setYamlStatus(true, stamp ? `YAML loaded from GitHub (cached ${stamp})` : "YAML loaded from GitHub");
+        showStatus(true, "Loaded YAML from GitHub.");
+      } else {
+        // Fallback to cache if possible
+        const cA = loadCachedYaml("analyst");
+        const cR = loadCachedYaml("research");
+        const cS = loadCachedYaml("selector");
+
+        const cacheOk = validateYamlLooksReasonable(cA) && validateYamlLooksReasonable(cR) && validateYamlLooksReasonable(cS);
+
+        if (cacheOk) {
+          yamlStore.analyst  = cA;
+          yamlStore.research = cR;
+          yamlStore.selector = cS;
+
+          const stamp = getCacheStamp();
+          setYamlStatus(true, stamp ? `Using cached YAML (last fetch ${stamp})` : "Using cached YAML");
+          showStatus(false, "GitHub fetch failed; using cached YAML.");
+        } else {
+          yamlStore.analyst = yamlStore.research = yamlStore.selector = null;
+          setYamlStatus(false, "Failed to load YAML (no cache available).");
+          const errMsg = errors.length ? errors.map(e => `${e.mode}: ${e.error}`).join(" | ") : "Unknown error";
+          showStatus(false, "Could not load YAML from GitHub and no valid cache found. Check file names/branch.");
+          console.error("YAML load errors:", errors, errMsg);
+        }
+      }
+
+      updatePreview();
+    }
+
+    // =========================
+    // EVENTS
+    // =========================
+    nlPromptEl.addEventListener('input', updatePreview);
+    modeEl.addEventListener('change', updatePreview);
+
+    copyCombinedBtn.addEventListener('click', async () => {
+      const prompt = (nlPromptEl.value || '').trim();
+      if (!prompt) return showStatus(false, "Add a natural language prompt first.");
+      const combined = buildCombinedText();
+      const ok = await copyText(combined);
+      showStatus(ok, ok ? "Copied combined prompt to clipboard." : "Copy failed. Select the preview text and copy manually.");
+    });
+
+    copyYamlBtn.addEventListener('click', async () => {
+      const yaml = (getYamlForMode(modeEl.value) || '').trim();
+      if (!yaml) return showStatus(false, "YAML not loaded yet. Click Refresh YAML.");
+      const ok = await copyText(yaml);
+      showStatus(ok, ok ? "Copied YAML to clipboard." : "Copy failed. Select the preview text and copy manually.");
+    });
+
+    refreshYamlBtn.addEventListener('click', async () => {
+      await loadYamlFromGitHub();
+    });
+
+    clearBtn.addEventListener('click', () => {
+      nlPromptEl.value = "";
+      updatePreview();
+      showStatus(true, "Cleared.");
+      nlPromptEl.focus();
+    });
+
+    // =========================
+    // INIT
+    // =========================
+    (async function init() {
+      // Try cache immediately for snappy UX
+      const cA = loadCachedYaml("analyst");
+      const cR = loadCachedYaml("research");
+      const cS = loadCachedYaml("selector");
+
+      if (validateYamlLooksReasonable(cA) && validateYamlLooksReasonable(cR) && validateYamlLooksReasonable(cS)) {
+        yamlStore.analyst = cA;
+        yamlStore.research = cR;
+        yamlStore.selector = cS;
+
+        const stamp = getCacheStamp();
+        setYamlStatus(true, stamp ? `Using cached YAML (last fetch ${stamp})` : "Using cached YAML");
+      } else {
+        setYamlStatus(false, "Loading YAML from GitHub…");
+      }
+
+      updatePreview();
+      // Always attempt a fresh fetch in the background
+      await loadYamlFromGitHub();
+    })();
+  </script>
+</body>
+</html>
