@@ -8,24 +8,28 @@ The **RealAI Prompt Optimizer Framework** is a YAML-based prompt injection syste
 
 This creates a consistent, high-quality output workflow without requiring users to manually engineer perfect prompts.
 
-The framework includes **two distinct operating modes**:
+The framework includes **three distinct operating modes**:
 
 - **Analyst Mode** → tight, scoped, execution-focused  
 - **Research Mode** → contextual, insight-driven, investment-focused  
+- **Mode Selector** → recommends and routes to the best mode before execution  
 
-Together, they allow RealAI to function as both a disciplined analyst and a strategic research desk.
+Together, they allow RealAI to function as a disciplined analyst, a strategic research desk, and an intelligent workflow router.
 
 ---
 
 ## Repository Structure
 
-This repository contains two independent YAML configuration files:
+This repository contains three independent YAML configuration files:
 
 - `RealAIPromptOptimizer-AnalystMode.yaml`  
 - `RealAIPromptOptimizer-ResearchMode.yaml`  
+- `RealAIPromptOptimizer-ModeSelector.yaml`  
 
 Each file is self-contained and can be used independently.  
 There is no internal switching logic — users choose the mode explicitly by pasting the corresponding YAML block after their natural language prompt.
+
+**Mode Selector** acts as a front-door router when users are unsure which mode to use.
 
 ---
 
@@ -93,6 +97,29 @@ Think: **CRE research desk supporting investment decisions.**
 
 ---
 
+### Mode Selector
+**Purpose:** Intelligent routing between Analyst Mode and Research Mode.
+
+Best for:
+- When unsure which mode to use  
+- Training new users or teams  
+- Mixed analytical + strategic questions  
+- New or exploratory workflows  
+
+What it does:
+- Interprets the natural language prompt  
+- Explains how each mode would approach the request  
+- Recommends the best mode  
+- Allows user selection:
+  - Analyst Mode  
+  - Research Mode  
+  - Auto (model decides)  
+- Executes using the chosen mode  
+
+Think: **Workflow router and mode advisor for RealAI.**
+
+---
+
 ## Key Capabilities
 
 ### Intent Preservation
@@ -102,7 +129,7 @@ Captures the user’s true objective, audience, tone, and constraints before rew
 Transforms unstructured or loosely defined requests into clear, execution-ready prompts tailored for RealAI performance.
 
 ### Automatic Execution
-After optimization, the model immediately acts on the improved prompt — no additional user input required.
+After optimization (and mode selection if applicable), the model immediately acts on the improved prompt — no additional user input required.
 
 ### Constraint-First Logic
 User formatting, tone, and structural requirements are treated as **hard rules** and always take priority.
@@ -121,6 +148,11 @@ Ensures consistent response sections:
 - **Optimized Prompt**  
 - **Output (final result)**  
 
+Mode Selector adds:
+- **Mode Recommendation**
+- **User Mode Selection**
+- **Execution via chosen mode**
+
 ---
 
 ## Intended Use Cases
@@ -133,18 +165,30 @@ Ensures consistent response sections:
 - Workflow automation inside RealAI  
 - Standardizing prompt quality across teams  
 - Reducing iteration cycles with LLMs  
+- Training analysts to use LLMs consistently  
 
 ---
 
 ## How to Use
 
+### Option 1 — Use a Mode Directly
 1. Write your request in natural language.  
 2. Choose a mode:
-   - Use **Analyst Mode** for tight, scoped answers  
-   - Use **Research Mode** for deeper insight and context  
-3. Paste the selected YAML optimizer block directly after your prompt.  
-4. Submit both together to RealAI.  
-5. The model will optimize and execute automatically.
+   - **Analyst Mode** → tight, scoped answers  
+   - **Research Mode** → deeper insight and context  
+3. Paste the corresponding YAML block directly after your prompt.  
+4. Submit to RealAI.  
+5. The model optimizes and executes automatically.
+
+### Option 2 — Use Mode Selector (Recommended for new workflows)
+1. Write your request in natural language.  
+2. Paste the **Mode Selector** YAML after the prompt.  
+3. RealAI will:
+   - Interpret your intent  
+   - Explain both modes  
+   - Recommend one  
+   - Ask you to choose  
+4. It will then execute using the selected mode.
 
 No prompt engineering experience required.
 
@@ -154,11 +198,12 @@ No prompt engineering experience required.
 
 This framework is built on a simple principle:
 
-**The user should only state what they want — the system determines how deeply to analyze it.**
+**The user should only state what they want — the system determines how best to execute it.**
 
-By separating **Analyst Mode** and **Research Mode**, users gain control over output style:
+By separating **Analyst Mode**, **Research Mode**, and **Mode Selector**, users gain full control over output style:
 
 - Precision when speed and clarity matter  
 - Depth when insight and strategy matter  
+- Guidance when unsure which approach fits  
 
 The result is a reusable, portable prompt-quality layer that improves clarity, reliability, and usefulness across all RealAI sessions.
